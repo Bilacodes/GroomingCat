@@ -482,6 +482,15 @@ select:invalid:not(:focus) {
   padding-top: 18px;
 }
 
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--paper);
+  padding: 18px 22px;
+  border-top: 1px dashed var(--border);
+  z-index: 10;
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
@@ -505,7 +514,25 @@ select:invalid:not(:focus) {
 .btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
 .btn-ghost:hover { background: var(--bg); color: var(--ink); }
 
+.btn-danger { background: #b3394c; color: #fff; }
+.btn-danger:hover { background: #8f2638; }
+
 .btn-small { padding: 7px 14px; font-size: 0.85rem; }
+
+.emoji-bow {
+  display: inline-block;
+  margin-right: 6px;       /* jarak kecil sebelum teks */
+  animation: bow-swing 1.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Animasi berayun lembut */
+@keyframes bow-swing {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  50% { transform: rotate(10deg); }
+  75% { transform: rotate(-6deg); }
+}
 
 /* ---------- table ---------- */
 
@@ -563,12 +590,74 @@ select:invalid:not(:focus) {
 }
 
 .booking-table td.col-keterangan { white-space: normal; max-width: 220px; }
+.booking-table td.col-actions, .booking-table th[aria-label="Aksi"] { white-space: nowrap; }
 
 .booking-table tbody tr {
   animation: row-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
 }
 .booking-table tbody tr:hover { background: #fbf8f2; }
+
+/* baris yang sedang dihapus: meluncur & memudar sebelum benar-benar lenyap */
+.booking-table tbody tr.row-out {
+  opacity: 0;
+  transform: translateX(14px) scale(0.98);
+}
+
+/* baris yang baru saja diedit: kasih kedipan warna lembut sebagai penanda */
+@keyframes row-flash {
+  0% { background: #fdecef; }
+  100% { background: transparent; }
+}
+.booking-table tbody tr.row-flash {
+  animation: row-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both, row-flash 1.2s ease;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease;
+}
+.icon-btn:hover { transform: translateY(-1px) scale(1.1); }
+.icon-btn:active { transform: scale(0.92); }
+.icon-btn-edit:hover { background: #eaf3ec; }
+.icon-btn-delete:hover { background: #fdecef; }
+
+/* Tambahan styling kapsul untuk tombol aksi */
+.icon-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  background: #e0f0ff;   /* biru lembut */
+  color: #007bff;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.icon-btn-edit:hover {
+  background: #cce4ff;
+  transform: translateY(-2px);
+}
+
+.icon-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  background: #ffe0e0;   /* merah muda */
+  color: #d9534f;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.icon-btn-delete:hover {
+  background: #ffc9c9;
+  transform: translateY(-2px);
+}
 
 .kode-pill {
   font-family: "IBM Plex Mono", monospace;
@@ -576,14 +665,24 @@ select:invalid:not(:focus) {
   color: var(--pine);
 }
 
-.layanan-tag {
+/* .layanan-tag {
   display: inline-block;
-  font-size: 0.8rem;
-  background: #fdecef;
+  font-size: 0.78rem;
+  background: var(--accent-light);
   color: var(--accent-ink);
   padding: 3px 9px;
   border-radius: 999px;
+} */
+
+.card-price {
+  display: inline-block;
+  font-size: 0.78rem;
+  background: #d4f5d4; /* langsung pakai warna hijau muda */
+  color: #2a7a2a;      /* hijau tua */
+  padding: 3px 9px;
+  border-radius: 999px;
 }
+
 
 .empty-state {
   display: flex;
@@ -599,12 +698,98 @@ select:invalid:not(:focus) {
   animation: float-paw 2.4s ease-in-out infinite;
 }
 
-/* ---------- Footer ---------- */
-.site-footer {
-  border-top: 1px solid var(--border);
-  padding: 18px 20px;
+/* ---------- Modal (Edit Booking & Konfirmasi Hapus) ---------- */
+
+body.modal-open { overflow: hidden; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;   /* mulai dari atas, bukan tengah */
+  justify-content: center;
+  overflow-y: auto;          /* biar bisa di-scroll */
+  padding: 40px 20px;        /* jarak aman atas & bawah */
+  background: rgba(35, 48, 41, 0.45);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+.modal-overlay.is-open { opacity: 1; visibility: visible; }
+
+.modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: none;          /* biarkan tinggi alami */
+  overflow-y: auto;          /* konten panjang bisa di-scroll */
+  padding: 40px 24px 60px;   /* ruang atas & bawah konten */
+  margin-top: 0;             /* jangan pakai margin-top lagi */
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
   color: var(--muted);
-  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease;
+}
+.modal-close:hover { background: var(--bg); color: var(--ink); transform: rotate(90deg); }
+
+.modal-title { margin: 14px 0 4px; font-size: 1.2rem; }
+
+.confirm-card {
+  text-align: center;
+  max-width: 360px;
+  padding: 32px 28px 28px;
+}
+.confirm-icon {
+  display: inline-flex;
+  font-size: 2rem;
+  margin-bottom: 8px;
+  animation: paw-wiggle 0.6s ease-in-out;
+}
+.confirm-card h2 { font-size: 1.15rem; margin: 0 0 6px; }
+.confirm-card p { color: var(--muted); font-size: 0.9rem; margin: 0 0 4px; }
+
+/* ---------- Footer ---------- */
+.footer {
+  background: #fff6f8; /* warna lembut seperti di gambar */
+  padding: 15px 0;
+  text-align: center;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.footer-brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-name {
+  font-weight: 700;
+  color: #c2185b; /* merah muda tua */
+  font-size: 1.1rem;
+}
+
+.paw {
+  color: #4a3b5a; /* ungu tua */
+  font-size: 1rem;
+}
+
+.tagline {
+  color: #6b4f6f;
+  font-size: 1rem;
 }
 
 /* ---------- Small screens ---------- */
@@ -613,4 +798,383 @@ select:invalid:not(:focus) {
   .form-actions { justify-content: stretch; }
   .form-actions .btn { flex: 1; }
   .ledger-toolbar { flex-wrap: wrap; }
+}
+
+/* =================================================================
+   ANIMASI KOMPLEKS TAMBAHAN — MeowSpa Enhanced
+   ================================================================= */
+
+/* ---------- Keyframes baru ---------- */
+
+/* Gelombang mengalir untuk hero background */
+@keyframes wave-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Pulse berdenyut seperti jantung */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.2); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.15); }
+  56%       { transform: scale(1); }
+}
+
+/* Shine / kilauan menyapu */
+@keyframes shine-sweep {
+  0%   { left: -80%; }
+  100% { left: 120%; }
+}
+
+/* Partikel bintang berputar (untuk CTA) */
+@keyframes star-orbit {
+  from { transform: rotate(0deg) translateX(22px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(22px) rotate(-360deg); }
+}
+
+/* Bounce masuk dari bawah dengan spring */
+@keyframes spring-in {
+  0%   { opacity: 0; transform: translateY(40px) scale(0.8); }
+  60%  { transform: translateY(-10px) scale(1.05); }
+  80%  { transform: translateY(4px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Berkedip kasar seperti neon sign */
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    text-shadow: 0 0 4px var(--accent), 0 0 12px var(--accent), 0 0 24px var(--accent);
+    opacity: 1;
+  }
+  20%, 24%, 55% { opacity: 0.7; text-shadow: none; }
+}
+
+/* Rotasi perlahan abadi (untuk badge / ikon dekoratif) */
+@keyframes slow-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Morfing border radius (blob) */
+@keyframes blob-morph {
+  0%, 100% { border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%; }
+  25%       { border-radius: 40% 60% 30% 70% / 60% 40% 60% 40%; }
+  50%       { border-radius: 70% 30% 50% 50% / 30% 70% 50% 50%; }
+  75%       { border-radius: 30% 70% 60% 40% / 70% 30% 40% 60%; }
+}
+
+/* Ripple melebar (untuk efek klik / hover) */
+@keyframes ripple-expand {
+  0%   { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+/* Teks muncul karakter per karakter (typewriter effect) */
+@keyframes typewriter-cursor {
+  0%, 100% { border-right-color: var(--accent); }
+  50%       { border-right-color: transparent; }
+}
+
+/* Slide-in dari kanan */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Stagger reveal baris tabel (lebih dramatis) */
+@keyframes row-cascade {
+  0%   { opacity: 0; transform: translateX(-16px) skewX(-4deg); }
+  60%  { transform: translateX(3px) skewX(1deg); }
+  100% { opacity: 1; transform: translateX(0) skewX(0); }
+}
+
+/* Badge count ganti angka: flip vertikal */
+@keyframes count-flip {
+  0%   { transform: rotateX(0deg); opacity: 1; }
+  45%  { transform: rotateX(-90deg); opacity: 0; }
+  55%  { transform: rotateX(90deg); opacity: 0; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+
+/* Glitter / shimmer untuk layanan card */
+@keyframes glitter-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 87, 107, 0); }
+  50%       { box-shadow: 0 0 0 8px rgba(201, 87, 107, 0.08); }
+}
+
+/* Teks bergoyang santai */
+@keyframes text-sway {
+  0%, 100% { transform: rotate(-1deg); }
+  50%       { transform: rotate(1deg); }
+}
+
+/* ---------- Hero Home — background gradient animasi ---------- */
+
+.hero-home {
+  position: relative;
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: linear-gradient(
+    135deg,
+    var(--bg) 0%,
+    #fce8ed 40%,
+    #e8f5ee 80%,
+    var(--bg) 100%
+  );
+  background-size: 300% 300%;
+  animation: wave-flow 8s ease infinite;
+  overflow: hidden;
+}
+
+/* Blob dekoratif di pojok kanan atas */
+.hero-home::before {
+  content: "";
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(201,87,107,0.15) 0%, transparent 70%);
+  animation: blob-morph 7s ease-in-out infinite;
+}
+
+/* Blob dekoratif di pojok kiri bawah */
+.hero-home::after {
+  content: "";
+  position: absolute;
+  bottom: -20px;
+  left: -20px;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(47,93,82,0.12) 0%, transparent 70%);
+  animation: blob-morph 9s ease-in-out infinite reverse;
+}
+
+/* ---------- Logo paw — heartbeat saat hover ---------- */
+.logo:hover .paw,
+.logo:focus-visible .paw {
+  animation: heartbeat 0.8s ease-in-out;
+}
+
+/* ---------- Tombol primary — efek shine menyapu ---------- */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.35) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  transition: none;
+}
+.btn-primary:hover::before {
+  animation: shine-sweep 0.55s ease forwards;
+}
+
+/* ---------- Service cards — spring-in + glitter + stagger ---------- */
+.services-grid .service-card {
+  animation: spring-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease;
+}
+.services-grid .service-card:nth-child(1) { animation-delay: 0.05s; }
+.services-grid .service-card:nth-child(2) { animation-delay: 0.12s; }
+.services-grid .service-card:nth-child(3) { animation-delay: 0.19s; }
+.services-grid .service-card:nth-child(4) { animation-delay: 0.26s; }
+.services-grid .service-card:nth-child(5) { animation-delay: 0.33s; }
+
+.service-card:hover {
+  animation: glitter-pulse 1.2s ease-in-out infinite;
+  transform: translateY(-6px) scale(1.02);
+}
+
+/* Ikon berputar satu kali penuh saat hover card */
+.service-card:hover .service-icon {
+  animation: slow-spin 0.6s ease-in-out 1 forwards,
+             paw-wiggle 0.4s ease-in-out 0.7s;
+}
+
+/* ---------- Steps — slide masuk dari kanan dengan stagger ---------- */
+.steps .step {
+  animation: slide-in-right 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.steps .step:nth-child(1) { animation-delay: 0.1s; }
+.steps .step:nth-child(2) { animation-delay: 0.22s; }
+.steps .step:nth-child(3) { animation-delay: 0.34s; }
+
+/* Step-num pulse saat hover */
+.step:hover .step-num {
+  animation: heartbeat 0.6s ease-in-out;
+}
+
+/* ---------- CTA Banner — partikel bintang berputar orbit ---------- */
+.cta-banner {
+  position: relative;
+  background: linear-gradient(135deg, var(--ink) 0%, #1a3a2e 100%);
+  overflow: hidden;
+}
+
+/* Orbs dekoratif di CTA */
+.cta-banner::before {
+  content: "🐾";
+  position: absolute;
+  font-size: 5rem;
+  opacity: 0.06;
+  top: -10px;
+  right: -10px;
+  animation: slow-spin 20s linear infinite;
+  pointer-events: none;
+}
+
+.cta-tag {
+  animation: spring-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s;
+}
+
+/* ---------- Tabel rows — cascade yang lebih dramatis ---------- */
+.booking-table tbody tr {
+  animation: row-cascade 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---------- Count badge — flip ---------- */
+.count-badge.pop {
+  animation: count-flip 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Layanan tag — shimmer lembut ---------- */
+.layanan-tag {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.layanan-tag:hover { transform: scale(1.06); }
+.layanan-tag::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shine-sweep 2s ease-in-out infinite;
+}
+
+/* ---------- Kode pill — glow saat hover ---------- */
+.kode-pill {
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+tr:hover .kode-pill {
+  color: var(--accent-ink);
+  text-shadow: 0 0 6px rgba(201, 87, 107, 0.4);
+}
+
+/* ---------- Modal card — spring masuk lebih bertenaga ---------- */
+.modal-overlay .modal-card {
+  transform: scale(0.85) translateY(20px);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-overlay.is-open .modal-card {
+  transform: scale(1) translateY(0);
+}
+
+/* ---------- Ripple effect pada tombol ---------- */
+.btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn .ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.35);
+  margin-top: -25px;
+  margin-left: -25px;
+  pointer-events: none;
+  animation: ripple-expand 0.6s linear forwards;
+}
+
+/* ---------- Empty state paw — animasi float lebih kompleks ---------- */
+.empty-state .paw-big {
+  animation: float-paw 2.4s ease-in-out infinite,
+             text-sway 3.5s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* ---------- Form input — focus yang lebih hidup ---------- */
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 0 0 3px rgba(201, 87, 107, 0.15),
+              0 4px 12px rgba(201, 87, 107, 0.1);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------- Nav link aktif — underline tumbuh ---------- */
+.nav-link {
+  position: relative;
+}
+.nav-link:not(.is-active)::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.2s ease, left 0.2s ease;
+}
+.nav-link:not(.is-active):hover::after {
+  width: calc(100% - 28px);
+  left: 14px;
+}
+
+/* ---------- Icon btn — berputar saat delete hover ---------- */
+.icon-btn-delete:hover {
+  animation: text-sway 0.3s ease-in-out 2;
+  color: var(--accent-ink);
+}
+
+/* ---------- Ticket tab pop lebih dramatis ---------- */
+.ticket-tab {
+  animation: spring-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s;
+}
+
+/* ---------- Scroll-reveal utility (dipakai JS IntersectionObserver) ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-right {
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal-right.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (max-height: 700px) {
+  .modal-card { margin-top: 20px; }
 }

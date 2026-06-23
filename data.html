@@ -39,6 +39,7 @@
     <section class="ledger">
       <div class="ledger-toolbar">
         <span id="count-badge" class="count-badge">0 booking</span>
+        <button id="clear-all" class="btn btn-ghost btn-small">Hapus Semua</button>
       </div>
 
       <div class="table-wrap">
@@ -53,6 +54,7 @@
               <th>Tanggal</th>
               <th>Jam</th>
               <th>Keterangan</th>
+              <th aria-label="Aksi"></th>
             </tr>
           </thead>
           <tbody id="booking-tbody">
@@ -75,10 +77,103 @@
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">MeowSpa</div>
+  <!-- Modal: Edit Booking -->
+  <div id="edit-modal" class="modal-overlay" hidden>
+    <div class="modal-card ticket" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+      <button type="button" class="modal-close" id="edit-modal-close" aria-label="Tutup">&times;</button>
+      <h2 id="edit-modal-title" class="modal-title">Edit data booking</h2>
+
+      <form id="edit-form" class="booking-form" novalidate>
+        <div id="edit-form-alert" class="form-alert" role="alert" hidden></div>
+        <input type="hidden" id="edit-id" />
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="edit-namaPemilik">Nama Pemilik</label>
+            <input type="text" id="edit-namaPemilik" required />
+            <span class="field-error" data-for="edit-namaPemilik"></span>
+          </div>
+
+          <div class="field">
+            <label for="edit-noHp">No. WhatsApp</label>
+            <input type="tel" id="edit-noHp" pattern="[0-9+\s-]{8,15}" required />
+            <span class="field-error" data-for="edit-noHp"></span>
+          </div>
+
+          <div class="field">
+            <label for="edit-namaKucing">Nama Kucing</label>
+            <input type="text" id="edit-namaKucing" required />
+            <span class="field-error" data-for="edit-namaKucing"></span>
+          </div>
+
+          <div class="field">
+            <label for="edit-jenisLayanan">Jenis Layanan</label>
+            <select id="edit-jenisLayanan" required>
+              <option value="Mandi Biasa">Mandi Biasa</option>
+              <option value="Mandi + Sisir Bulu">Mandi + Sisir Bulu</option>
+              <option value="Grooming Lengkap">Grooming Lengkap (mandi, potong kuku, sisir)</option>
+              <option value="Cukur Bulu Penuh">Cukur Bulu Penuh</option>
+              <option value="Spa &amp; Aromatherapy">Spa &amp; Aromatherapy</option>
+            </select>
+            <span class="field-error" data-for="edit-jenisLayanan"></span>
+          </div>
+
+          <div class="field">
+            <label for="edit-tanggal">Tanggal Booking</label>
+            <input type="date" id="edit-tanggal" required />
+            <span class="field-error" data-for="edit-tanggal"></span>
+          </div>
+
+          <div class="field">
+            <label for="edit-jam">Jam</label>
+            <select id="edit-jam" required>
+              <option>09:00</option>
+              <option>10:30</option>
+              <option>12:00</option>
+              <option>13:30</option>
+              <option>15:00</option>
+              <option>16:30</option>
+              <option>17:30</option>
+            </select>
+            <span class="field-error" data-for="edit-jam"></span>
+          </div>
+
+          <div class="field field-wide">
+            <label for="edit-keterangan">Keterangan <span class="optional">(opsional)</span></label>
+            <textarea id="edit-keterangan" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="edit-cancel">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Konfirmasi hapus (dipakai untuk hapus satu maupun hapus semua) -->
+  <div id="confirm-modal" class="modal-overlay" hidden>
+    <div class="modal-card confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+      <span class="confirm-icon" aria-hidden="true">🐾</span>
+      <h2 id="confirm-modal-title">Hapus booking ini?</h2>
+      <p id="confirm-modal-text">Data yang sudah dihapus tidak bisa dikembalikan.</p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="confirm-cancel">Batal</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <span class="brand-name">MeowSpa</span>
+      <span class="paw">🐾</span>
+      <span class="tagline">Grooming terbaik untuk kucing kesayanganmu</span>
+    </div>
   </footer>
 
-  <script src="js/script.js"></script>
+  <script src="JS/script.js"></script>
 </body>
 </html>
